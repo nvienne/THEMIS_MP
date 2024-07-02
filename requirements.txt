@@ -4,3 +4,4 @@ chromadb
 pandas
 tqdm
 selenium
+prettytable
