@@ -6,6 +6,8 @@ import pytesseract
 from transformers import XLMRobertaTokenizer
 import logging
 from openai import OpenAI
+import ollama
+
 
 pytesseract.pytesseract.tesseract_cmd = r"E:\THEMIS\4. Admin\tesseract.exe"
 
@@ -47,14 +49,34 @@ def preprocess_text(text):
         text = text.replace(old, new)
     return text
 
-def generate_summary(text, model="gpt-4-turbo-preview", api_key="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"):
+def generate_summary(text, model="gpt-4o-mini-2024-07-18", api_key="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"):
     client = OpenAI(api_key=api_key)
     
     # Prepare the messages for the chat
     messages = [
-        {"role": "system", "content": "Tu es un assistant intelligent spécialisé dans la création de résumés précis et exhaustifs de textes de loi. "
-        " Les résumés doivent être compréhensibles par un public général tout en soulignant les implications légales clés. Utilise des bullet points pour les points saillants lorsqu'approprié."},
-        {"role": "user", "content": f"Je te prie de résumer le texte suivant pour une compréhension générale, en mettant en évidence les principaux éléments légaux et en gardant le résumé concis. Voici le texte: {text}"}
+        {
+            "role": "system",
+            "content": (
+                "Tu es un assistant intelligent spécialisé dans la création de résumés précis et exhaustifs de textes de loi. "
+                "Les résumés doivent être compréhensibles par un public général tout en soulignant les implications légales clés. "
+                "Utilise des bullet points pour les points saillants lorsqu'approprié. "
+                "Pour chaque texte, assure-toi de couvrir les éléments suivants, en utilisant des bullet points : "
+                "1. Identification de l'arrêt "
+                "2. Nature du litige "
+                "3. Résumé des faits "
+                "4. Arguments des parties "
+                "5. Questions juridiques traitées "
+                "6. Raisonnement du tribunal "
+                "7. Décision "
+                "8. Implications."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Je te prie de résumer le texte suivant pour une compréhension générale, en mettant en évidence les principaux éléments légaux et en gardant le résumé concis. Voici le texte: {text}"
+            )
+        }
     ]
     
     # Make the API call to create a chat completion
@@ -68,7 +90,14 @@ def generate_summary(text, model="gpt-4-turbo-preview", api_key="sk-aePALEV7hMoC
     # Extract and return the completion text (the summary)
     try:
         summary = completion.choices[0].message.content.strip()
-        return summary
+        total_tokens = completion.usage.total_tokens
+        return summary, total_tokens
     except (IndexError, KeyError) as e:
         print(f"Failed to extract summary. Error: {e}")
-        return ""
+        return "", 0
+
+# Example usage
+text_to_summarize = read_pdf(r"E:\MP\1. Documents\ATF\128 II 13.pdf")
+summary, tokens_used = generate_summary(text_to_summarize)
+print(f"Summary: {summary}")
+print(f"Total tokens used: {tokens_used}")

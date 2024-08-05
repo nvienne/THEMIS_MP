@@ -43,7 +43,7 @@ def pdf_to_text_using_ocr(file_path):
         return ""
  
 def synthesis(text, model_name, completion_tokens):
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key="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")
 
     messages = [
         {
@@ -86,6 +86,8 @@ def synthesis(text, model_name, completion_tokens):
     print(f"USD Cost for {tokens_used} tokens: ${usd_cost:.4f}")
 
     return answer, usd_cost
+
+
 
 
 # text = read_pdf(r"E:\MP\4. Admin\Test_Revue_Synthèse.pdf")

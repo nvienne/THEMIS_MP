@@ -43,7 +43,7 @@ def pdf_to_text_using_ocr(file_path):
         return ""
  
 def control(text, model_name, completion_tokens):
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key="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")
 
     messages = [
         {

@@ -231,7 +231,7 @@ directory_path = r'E:\MP\1. Documents\ATF'
 type_value = "ATF"
 jurisdiction_value = 'CH'  
 model = "gpt-4-turbo-preview"
-api_key="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"
+api_key="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"
 # process_pdf_files(directory_path, type_value, jurisdiction_value, model, api_key)
 # compute_token_counts(r"E:\MP\3. Data base\DB.csv", 'cl100k_base')
 
@@ -301,8 +301,8 @@ def add_embeddings_for_new_doc(csv_path, model_name="text-embedding-ada-002", ap
     print(df.info())
 
 csv_path = r"E:\MP\3. Data base\DB_LEX.csv"
-# add_embeddings_to_csv(csv_path, model_name="text-embedding-ada-002", api_key="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")
-# add_embeddings_for_new_doc(csv_path, model_name="text-embedding-ada-002", api_key="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")
+# add_embeddings_to_csv(csv_path, model_name="text-embedding-ada-002", api_key="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")
+# add_embeddings_for_new_doc(csv_path, model_name="text-embedding-ada-002", api_key="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")
 
 
 def combine_csvs(file_list, columns_to_keep, output_file_name):
@@ -328,17 +328,19 @@ output_file_name = 'DB.csv'
 
 
 
-def insert_into_chromadb(csv_path, db_path, collection, batch_size=1000):
+def insert_into_chromadb(csv_path, db_path, collection_name, batch_size=1000):
     df = pd.read_csv(csv_path)
-
-    df['Embeddings'] = df['Embeddings'].apply(lambda x: np.array(ast.literal_eval(x)) if x is not None else None)
+    
+    # Ensure embeddings are correctly parsed as lists of floats
+    df['Embeddings'] = df['Embeddings'].apply(lambda x: np.array(ast.literal_eval(x)) if pd.notnull(x) else None)
     
     try:
         client = chromadb.PersistentClient(path=db_path)
     except Exception as e:
         print(f"Error initializing the client: {e}")
-
-    collection = client.get_or_create_collection(collection, metadata={"hnsw:space": "cosine"})
+        return
+    
+    collection = client.get_or_create_collection(collection_name, metadata={"hnsw:space": "cosine"})
 
     total_rows = df.shape[0]
     num_batches = (total_rows // batch_size) + (1 if total_rows % batch_size else 0)
@@ -371,6 +373,10 @@ def insert_into_chromadb(csv_path, db_path, collection, batch_size=1000):
             }
             metadata_list.append(metadata)
 
+        # Debug: Print a sample of the metadata list to verify
+        if batch_num == 0:
+            print(f"Sample metadata (batch {batch_num + 1}): {metadata_list[:3]}")
+
         valid_indices = [i for i, emb in enumerate(embeddings) if emb is not None]
 
         filtered_embeddings = [embeddings[i] for i in valid_indices]
@@ -378,7 +384,10 @@ def insert_into_chromadb(csv_path, db_path, collection, batch_size=1000):
         filtered_ids = [ids[i] for i in valid_indices]
 
         if filtered_embeddings and filtered_metadatas and filtered_ids:
-            collection.add(embeddings=filtered_embeddings, metadatas=filtered_metadatas, ids=filtered_ids)
+            try:
+                collection.add(embeddings=filtered_embeddings, metadatas=filtered_metadatas, ids=filtered_ids)
+            except Exception as e:
+                print(f"Error adding batch {batch_num + 1} to collection: {e}")
         else:
             print(f"Batch {batch_num + 1}/{num_batches} had no valid embeddings. Skipping.")
 
@@ -429,8 +438,8 @@ def inspect_collection(db_path, collection):
             print("Invalid input. Please enter 'yes' or 'no'.")
 
 csv_path = r"E:\MP\3. Data base\DB.csv"
-db_path = r"E:\MP\3. Data base"
-collection = "THEMIS_test"
+db_path = r"E:\MP\3. Data base\Test_25.07.24"
+collection = "THEMIS_MP"
 insert_into_chromadb(csv_path, db_path, collection, batch_size=1000)
-
+# inspect_collection(db_path, collection)
 

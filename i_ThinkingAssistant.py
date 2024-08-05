@@ -9,8 +9,8 @@ def initialize_collection(db_path, collection_name):
     return collection, chroma_client
 
 def embed_text_with_ada(text):
-    openai_client = OpenAI(api_key="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")
-    response = openai_client.embeddings.create(input=text, model="text-embedding-ada-002")
+    openai_client = OpenAI(api_key="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")
+    response = openai_client.embeddings.create(input=text, model="text-embedding-3-small")
     embeddings = [item.embedding for item in response.data]
 
     return embeddings
@@ -21,7 +21,7 @@ def extract_information(response):
         return {}
 
     results = response['metadatas'][0]
-    distances = response['distances']
+    distances = response['distances'][0]  # Access the first (and assumed only) list in distances
 
     # Initialize a dictionary to hold the grouped documents
     grouped_documents = {'LEX': [], 'ATF': [], 'ATC': [], 'DOC': []}
@@ -108,87 +108,47 @@ def query_chroma_db(collection, question, n_results, type=None, juridiction=None
         print(f"Error querying Chroma DB with ada embeddings: {e}")
         return None
 
-def procurement_assistant(description, top_chunks, additional_info, model_name="gpt-4-1106-preview", completion_tokens=4000, max_question_tokens=12000):
-    client = OpenAI(api_key="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")
+def procurement_assistant(description, additional_info, model_name="gpt-4o-2024-05-13", completion_tokens=4000, max_question_tokens=12000):
+    client = OpenAI(api_key="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")
 
-    # Extract the context from top_results
-    context = ""
-    context_tokens = 0
-    for metadata_list in top_chunks['metadatas']:
-        for result in metadata_list:
-            document_text = result['chunk']  
-            chunk_tokens = len(document_text.split())
-            if context_tokens + chunk_tokens <= max_question_tokens:
-                context += f"Document ID: {result.get('filename', 'Unknown')}\n{document_text}\n\n"  
-                context_tokens += chunk_tokens
-            else:
-                print("Token limit reached, additional documents are not added.")
-                break
-        else:
-            print("Token limit reached, additional documents are not added.")
-            break
-
-    if not context:
-        print("No valid results received from Chroma DB.")
-        return None, None
-
-    # Phase 1: Generate Overview and Legal Compliance Checklist
-    checklist_prompt = f"""Vous êtes un assistant expert en réglementations des marchés publics.
-
-    En tant qu'assistant expert, vous devez fournir un aperçu détaillé du sujet de l'appel d'offres basé sur la description suivante : '{description}'. 
-    Cet aperçu doit inclure les points clés, les dimensions stratégiques, les implications opérationnelles et les défis potentiels liés à ce sujet. 
-    Utilisez ensuite la base de données suivante pour vous assurer que les documents de l'appel d'offres respectent intégralement le cadre juridique suisse : {context}. 
-    Veuillez structurer la revue légale de manière claire et détaillée, en abordant tous les aspects légaux pertinents."""
-
-    checklist_completion = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": checklist_prompt}
-        ],
-        temperature=0.4,
-        max_tokens=completion_tokens
-    )
-
-    checklist = checklist_completion.choices[0].message.content
-
-    print("Vue d'ensemble:\n", checklist)
-
-    input_tokens_phase1 = len(checklist_prompt.split())
-    output_tokens_phase1 = len(checklist.split())
-
-    # Phase 2: Generate Strategic Questions and Guidelines
-    strategy_prompt = f"""Compte tenu de la description de l'objet de l'appel d'offres : '{description}', 
+    questions = f"""Compte tenu de la description de l'objet de l'appel d'offres : '{description}', 
     et des informations supplémentaires pertinentes : '{additional_info}', 
-    vous devez exploiter votre propre raisonnement et savoir ainsi qu'une base de données exhaustive des lois, ordonnances, documentations officielles et décisions judiciaires relatives aux marchés publics en Suisse pour formuler des questions stratégiques et des directives. 
-    Ces éléments doivent porter sur l'analyse de besoin, le cahier des charges, la gestion des risques, le rapport qualité-prix et la notion de qualité. 
+    vous devez exploiter votre propre raisonnement et savoir ainsi qu'une base de données exhaustive des lois, ordonnances, documentations officielles et décisions judiciaires relatives aux marchés publics en Suisse 
+    pour formuler des questions stratégiques et des directives. 
+    Ces éléments doivent porter sur l'analyse de besoin, le système à mettre en place, le cahier des charges, la durabilité et protection de l'environnement, la gestion des risques, le rapport qualité-prix et la notion de qualité. 
     Assurez-vous que les questions et directives sont précises, axées sur l'action et adaptées à la planification et à l'exécution stratégique de l'appel d'offres."""
 
-    strategy_completion = client.chat.completions.create(
+    questions_completion = client.chat.completions.create(
         model=model_name,
         messages=[
-            {"role": "system", "content": strategy_prompt}
+            {"role": "system", "content": questions}
         ],
         temperature=0.5,
         max_tokens=completion_tokens
     )
 
-    strategy_questions_guidelines = strategy_completion.choices[0].message.content
+    strategy_questions_guidelines = questions_completion.choices[0].message.content
+    usage_questions = questions_completion.usage
 
-    print("Questions:\n", strategy_questions_guidelines)
+    # Define the pricing
+    price_per_million_input_tokens = 5.00  # in USD
+    price_per_million_output_tokens = 15.00  # in USD
 
-    # Calculate tokens used in phase 2
-    input_tokens_phase2 = len(strategy_prompt.split())
-    output_tokens_phase2 = len(strategy_questions_guidelines.split())
+    input_tokens_phase1 = len(questions.split())
+    output_tokens_phase1 = usage_questions.completion_tokens
+    total_tokens_phase1 = input_tokens_phase1 + output_tokens_phase1
 
-    # Total tokens used
-    total_tokens = input_tokens_phase1 + output_tokens_phase1 + input_tokens_phase2 + output_tokens_phase2
+    # Calculate the cost for phase 1
+    cost_input_phase1 = (input_tokens_phase1 / 1_000_000) * price_per_million_input_tokens
+    cost_output_phase1 = (output_tokens_phase1 / 1_000_000) * price_per_million_output_tokens
+    total_cost_phase1 = cost_input_phase1 + cost_output_phase1
 
-    # Calculate the total cost
-    total_cost = (total_tokens / 1000) * 0.005
-
-    print(f"Total Tokens Used: {total_tokens}")
-    print(f"Total Cost: ${total_cost:.2f}")
-    return {"Vue d'ensemble": checklist, "Questions": strategy_questions_guidelines}  
+    # Update the return dictionary to include costs
+    return {
+        "Questions": strategy_questions_guidelines,
+        "Total_tokens_phase1": total_tokens_phase1,
+        "Total_cost_phase1": total_cost_phase1
+    }
 
 
 

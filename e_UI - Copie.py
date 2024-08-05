@@ -3,7 +3,7 @@ from openai import OpenAI
 from prettytable import PrettyTable
 from c_QA import *
 from d_Evaluation import *
-from f_Criteria_generation import *
+from f_Criteria_Adjudication import *
 from h_Revue import *
 from i_ThinkingAssistant import *
 from j_Vendor import *

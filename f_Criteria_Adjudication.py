@@ -1,14 +1,14 @@
 from openai import OpenAI
 
 def generate_procurement_criteria(description_du_marché, model_name):
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key="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")
 
     system_message = {
         "role": "system",
         "content": (
-            "Vous êtes une IA spécialisée dans l'élaboration de critères pour les marchés publics, basés sur la description d'un marché spécifique. "
+            "Vous êtes une IA spécialisée dans l'élaboration de critères d'adjudication pour les marchés publics, basés sur la description d'un marché spécifique. "
             "Votre mission est de créer une liste de quatre critères respectant les principes fondamentaux suivants: non-discrimination et transparence, pertinence directe avec l'objet du marché, contribution au développement durable, et conformité avec les régulations légales. "
-            "Pour chaque critère, incluez: son nom, une description, une plage de pondération (20% minimum pour le prix), l'adjudication ou l'aptitude, les points clés pour l'évaluation, et le format de réponse attendu. "
+            "Pour chaque critère, incluez: son nom, une description, une plage de pondération (20% minimum pour le prix), les éléments d'appréciation, et le format de réponse attendu. "
             "Veuillez utiliser une liste à puces pour présenter chaque critère et maintenir une mise en forme cohérente tout au long du texte. "
             "Commencez par décrire le critère 'Prix' avec une pondération minimale de 20%, puis continuez avec les autres critères. Assurez-vous de respecter ce format structuré pour chaque critère."
         )
@@ -40,7 +40,7 @@ def generate_procurement_criteria(description_du_marché, model_name):
     return criteria_content, tokens_used, usd_cost
 
 def generate_additional_criteria(description_du_marché, previous_criteria, model_name):
-    client = OpenAI(api_key="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")
+    client = OpenAI(api_key="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")
     enriched_context = "\n".join(previous_criteria)
 
     system_message_content = (
@@ -80,7 +80,7 @@ def generate_additional_criteria(description_du_marché, previous_criteria, mode
 
     return additional_criteria_content, tokens_used, usd_cost
 
-def run_criteria_generation(description_du_marché, model_name="gpt-4-1106-preview"):
+def run_criteria_generation(description_du_marché, model_name="gpt-4o-2024-05-13"):
     # Generate the initial set of criteria
     initial_criteria_content, initial_tokens_used, initial_usd_cost = generate_procurement_criteria(description_du_marché, model_name)
     previous_criteria = initial_criteria_content.split('\n')
